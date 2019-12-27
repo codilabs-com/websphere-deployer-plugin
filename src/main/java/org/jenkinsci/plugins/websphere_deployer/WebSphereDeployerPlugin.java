@@ -33,6 +33,7 @@ import org.jenkinsci.plugins.websphere.services.deployment.DeploymentServiceExce
 import org.jenkinsci.plugins.websphere.services.deployment.Server;
 import org.jenkinsci.plugins.websphere.services.deployment.WebSphereDeploymentService;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -45,32 +46,32 @@ import com.ibm.icu.text.SimpleDateFormat;
  */
 public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep {
 
-	private final static String OPERATION_REINSTALL = "1";
-    private final String ipAddress;
-    private final String connectorType;
-    private final String port;
-    private final String artifacts;
-    private final String earLevel;
-    private final String deploymentTimeout;
-    private final String classLoaderOrder;
-    private final String classLoaderPolicy;
-    private final String operations;
-    private final String context;
-    private final String installPath;
-    private final String targets;
-    private final String applicationName;
-    private final String virtualHost;
-    private final String sharedLibName;
-    private final String edition;
-    private final boolean fullSynchronization;
-    private final boolean precompile;
-    private final boolean reloading;
-    private final boolean jspReloading;
-    private final boolean verbose;
-    private final boolean distribute;
-    private final boolean rollback;
-    private final boolean unstableDeploy;
-    private final WebSphereSecurity security;
+	private static String OPERATION_REINSTALL = "1";
+    private String ipAddress;
+    private String connectorType;
+    private String port;
+    private String artifacts;
+    private String earLevel;
+    private String deploymentTimeout;
+    private String classLoaderOrder;
+    private String classLoaderPolicy;
+    private String operations;
+    private String context;
+    private String installPath;
+    private String targets;
+    private String applicationName;
+    private String virtualHost;
+    private String sharedLibName;
+    private String edition;
+    private boolean fullSynchronization;
+    private boolean precompile;
+    private boolean reloading;
+    private boolean jspReloading;
+    private boolean verbose;
+    private boolean distribute;
+    private boolean rollback;
+    private boolean unstableDeploy;
+    private WebSphereSecurity security;
 
     @DataBoundConstructor
     public WebSphereDeployerPlugin(String ipAddress,
@@ -225,8 +226,138 @@ public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep
     	return sharedLibName;
     }
 
+    /**
+     * Set parameters
+     */
+    
+    
+    @DataBoundSetter
+    public final void setEdition(String edition) {
+    	this.edition = edition;
+    }
+    
+    @DataBoundSetter
+    public final void setClassLoaderOrder(String classLoaderOrder) {
+    	this.classLoaderOrder = classLoaderOrder;
+    }
+    
+    @DataBoundSetter
+    public final void setApplicationName(String applicationName) {
+    	this.applicationName = applicationName;
+    }
+    
+    @DataBoundSetter
+    public final void setClassLoaderPolicy(String classLoaderPolicy) {
+    	this.classLoaderPolicy = classLoaderPolicy;
+    }
+    
+    @DataBoundSetter
+    public final void setTargets(String targets) {
+    	this.targets = targets;
+    }
+
+    @DataBoundSetter
+    public final void setEarLevel(String earLevel) {
+        this.earLevel = earLevel;
+    }
+
+    @DataBoundSetter
+    public final void setSecurity(WebSphereSecurity security) {
+    	this.security = security;
+    }
+    
+    @DataBoundSetter
+    public final void setDistribute(boolean distribute) {
+    	this.distribute = distribute;
+    }
+    
+    @DataBoundSetter
+    public final void setFullSynchronization(boolean fullSynchronization) {
+    	this.fullSynchronization = fullSynchronization;
+    }
+    
+    @DataBoundSetter
+    public final void setPrecompile(boolean precompile) {
+        this.precompile = precompile;
+    }
+
+    @DataBoundSetter
+    public final void setReloading(boolean reloading) {
+        this.reloading = reloading;
+    }
+    
+    @DataBoundSetter
+    public final void setJspReloading(boolean jspReloading) {
+    	this.jspReloading = jspReloading;
+    }
+    
+    @DataBoundSetter
+    public final void setVerbose(boolean verbose) {
+    	this.verbose = verbose;
+    }
+    
+    @DataBoundSetter
+    public final void setRollback(boolean rollback) {
+    	this.rollback = rollback;
+    }
+
+    @DataBoundSetter
+    public final void setUnstableDeploy(boolean unstableDeploy) {
+        this.unstableDeploy = unstableDeploy;
+    }
+
+    @DataBoundSetter
+    public final void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+    
+    @DataBoundSetter
+    public final void setContext(String context) {
+    	this.context = context;
+    }
+    
+    @DataBoundSetter
+    public final void setInstallPath(String installPath) {
+    	this.installPath = installPath;
+    }
+
+    @DataBoundSetter
+    public final void setConnectorType(String connectorType) {
+        this.connectorType = connectorType;
+    }
+
+    @DataBoundSetter
+    public final void setPort(String port) {
+        this.port = port;
+    }
+
+    @DataBoundSetter
+    public final void setArtifacts(String artifacts) {
+        this.artifacts = artifacts;
+    }
+
+    @DataBoundSetter
+    public final void setOperations(String operations) {
+        this.operations = operations;
+    }
+    
+    @DataBoundSetter
+    public final void setDeploymentTimeout(String deploymentTimeout) {
+		this.deploymentTimeout = deploymentTimeout;
+	}    
+    
+    @DataBoundSetter
+    public final void setVirtualHost(String virtualHost) {
+    	this.virtualHost = virtualHost;
+    }
+    
+    @DataBoundSetter
+    public final void setSharedLibName(String sharedLibName) {
+    	this.sharedLibName = sharedLibName;
+    }
+
     @Override
-    public void perform(Run build, FilePath ws, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
+    public void perform(Run<?,?> build, FilePath ws, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
     	if(build == null) {
     		throw new IllegalStateException("Build cannot be null");
     	}
