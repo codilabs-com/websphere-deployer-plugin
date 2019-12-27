@@ -2,14 +2,16 @@ package org.jenkinsci.plugins.websphere_deployer;
 
 import hudson.EnvVars;
 import hudson.Extension;
+import org.jenkinsci.Symbol;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.BuildListener;
 import hudson.model.Result;
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
+import jenkins.tasks.SimpleBuildStep;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
@@ -41,7 +43,7 @@ import com.ibm.icu.text.SimpleDateFormat;
  *
  * @author Greg Peters
  */
-public class WebSphereDeployerPlugin extends Notifier {
+public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep {
 
 	private final static String OPERATION_REINSTALL = "1";
     private final String ipAddress;
@@ -224,7 +226,7 @@ public class WebSphereDeployerPlugin extends Notifier {
     }
 
     @Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+    public void perform(Run build, FilePath ws, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
     	if(build == null) {
     		throw new IllegalStateException("Build cannot be null");
     	}
@@ -239,7 +241,7 @@ public class WebSphereDeployerPlugin extends Notifier {
                 EnvVars env = build.getEnvironment(listener);
                 preInitializeService(listener,service, env);  
             	service.connect();                	               
-                for(FilePath path:gatherArtifactPaths(build, listener)) {
+                for(FilePath path:gatherArtifactPaths(ws, build, listener)) {
                     artifact = createArtifact(path,listener,service);   
                     log(listener,"Artifact is being deployed to virtual host: "+artifact.getVirtualHost());
                     stopArtifact(artifact,listener,service);
@@ -259,7 +261,7 @@ public class WebSphereDeployerPlugin extends Notifier {
                     startArtifact(artifact,listener,service);
 
                     if(rollback) {
-                    	saveArtifactToRollbackRepository(build, listener, artifact);
+                    	saveArtifactToRollbackRepository(ws, build, listener, artifact);
                     }
                 }
             } catch (Exception e) {
@@ -280,7 +282,7 @@ public class WebSphereDeployerPlugin extends Notifier {
                 } else {
                 	log(listener,"Error deploying to IBM WebSphere Application Server: "+e.getMessage());
                 }
-                rollbackArtifact(service,build,listener,artifact);
+                rollbackArtifact(service,ws,build,listener,artifact);
                 build.setResult(Result.FAILURE);
             } finally {
                 service.disconnect();
@@ -288,7 +290,6 @@ public class WebSphereDeployerPlugin extends Notifier {
         } else {
             listener.getLogger().println("Unable to deploy to IBM WebSphere Application Server, Build Result = " + buildResult);
         }
-        return true;
     }
 
     private boolean shouldDeploy(Result result) {
@@ -297,17 +298,17 @@ public class WebSphereDeployerPlugin extends Notifier {
         return false;
     }
     
-    private void log(BuildListener listener,String data) {
+    private void log(TaskListener listener,String data) {
 		listener.getLogger().println(data);
     }
     
-    private void logVerbose(BuildListener listener,String data) {
+    private void logVerbose(TaskListener listener,String data) {
     	if(verbose) {
     		log(listener,data);
     	}
     }
     
-    private void rollbackArtifact(WebSphereDeploymentService service,AbstractBuild build,BuildListener listener,Artifact artifact) {
+    private void rollbackArtifact(WebSphereDeploymentService service, FilePath workspace,Run build,TaskListener listener,Artifact artifact) {
     	if(build == null) {
     		log(listener,"Cannot rollback to previous verions: build is null");
     	}
@@ -315,7 +316,6 @@ public class WebSphereDeployerPlugin extends Notifier {
     		log(listener,"Cannot rollback to previous version: artifact is null");
     		return;
     	}
-    	FilePath workspace = build.getWorkspace();
     	if(workspace == null) {
     		log(listener,"Cannot rollback to previous version: workspace is null");
     		return;
@@ -342,9 +342,9 @@ public class WebSphereDeployerPlugin extends Notifier {
     	}
     }
     
-    private void saveArtifactToRollbackRepository(AbstractBuild build,BuildListener listener,Artifact artifact) {
+    private void saveArtifactToRollbackRepository(FilePath workspace,Run build,TaskListener listener,Artifact artifact) {
     	listener.getLogger().println("Performing save operations on '" + artifact.getAppName() + "' for future rollbacks");
-    	FilePath workspace = build.getWorkspace();
+
     	if(workspace == null) {
     		log(listener, "Failed to save rollback to repository: Build workspace is null");
     		throw new IllegalStateException("Failed to save rollback to repository: Build workspace is null");
@@ -373,26 +373,26 @@ public class WebSphereDeployerPlugin extends Notifier {
     	}
     }
     
-    private void createIfNotExists(BuildListener listener,File directory) {
+    private void createIfNotExists(TaskListener listener,File directory) {
     	if(directory.exists() || directory.mkdir()) {
     		return;
     	}
     	throw new DeploymentServiceException("Failed to create directory, is write access allowed?: "+directory.getAbsolutePath());
     }
 
-    private void deployArtifact(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) throws Exception {
+    private void deployArtifact(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) throws Exception {
         listener.getLogger().println("Deploying '" + artifact.getAppName() + "' to IBM WebSphere Application Server");
         service.installArtifact(artifact);
     }
 
-    private void uninstallArtifact(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) throws Exception {
+    private void uninstallArtifact(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) throws Exception {
         if(service.isArtifactInstalled(artifact)) {
             listener.getLogger().println("Uninstalling Old Application '"+artifact.getAppName()+"'...");
             service.uninstallArtifact(artifact);
         }
     }
 
-    private void startArtifact(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) throws Exception {
+    private void startArtifact(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) throws Exception {
 		if(StringUtils.trimToNull(artifact.getEdition()) != null) {
 			listener.getLogger().println(artifact.getAppName()+ " will not be started automatically because 'Edition' management was used in the jenkins configuration");
 			return;
@@ -405,21 +405,21 @@ public class WebSphereDeployerPlugin extends Notifier {
     	}
     }
 
-    private void stopArtifact(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) throws Exception {
+    private void stopArtifact(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) throws Exception {
         if(service.isArtifactInstalled(artifact)) {
             listener.getLogger().println("Stopping Existing Application '"+artifact.getAppName()+"'...");
             service.stopArtifact(artifact);
         }
     }
     
-    private void updateArtifact(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) throws Exception {
+    private void updateArtifact(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) throws Exception {
         if(service.isArtifactInstalled(artifact)) {
             listener.getLogger().println("Updating '" + artifact.getAppName() + "' on IBM WebSphere Application Server");
             service.updateArtifact(artifact);
         }
     }      
 
-    private Artifact createArtifact(FilePath path,BuildListener listener,WebSphereDeploymentService service) {
+    private Artifact createArtifact(FilePath path,TaskListener listener,WebSphereDeploymentService service) {
         Artifact artifact = new Artifact();
         if(path.getRemote().endsWith(".ear")) {
             artifact.setType(Artifact.TYPE_EAR);
@@ -456,12 +456,11 @@ public class WebSphereDeployerPlugin extends Notifier {
         return artifact;
     }
 
-    private FilePath[] gatherArtifactPaths(AbstractBuild build,BuildListener listener) throws Exception {
+    private FilePath[] gatherArtifactPaths(FilePath workspace,Run build,TaskListener listener) throws Exception {
     	if(build == null) {
     		log(listener,"Cannot gather artifact paths: Build is null");
     		throw new IllegalStateException("Cannot gather artifact paths: Build is null");
     	}
-    	FilePath workspace = build.getWorkspace();
     	if(workspace == null) {
     		log(listener,"Cannot gather artifact paths: Build workspace is null");
     		throw new IllegalStateException("Cannot gather artifact paths: Build workspace is null");
@@ -492,7 +491,7 @@ public class WebSphereDeployerPlugin extends Notifier {
         return paths;
     }
 
-    private void preInitializeService(BuildListener listener,WebSphereDeploymentService service,EnvVars env) throws Exception {
+    private void preInitializeService(TaskListener listener,WebSphereDeploymentService service,EnvVars env) throws Exception {
         listener.getLogger().println("Connecting to IBM WebSphere Application Server...");
         service.setVerbose(isVerbose());
         service.setBuildListener(listener);;
@@ -519,7 +518,7 @@ public class WebSphereDeployerPlugin extends Notifier {
         }
     }
 
-    private void generateEAR(Artifact artifact,BuildListener listener,WebSphereDeploymentService service) {
+    private void generateEAR(Artifact artifact,TaskListener listener,WebSphereDeploymentService service) {
         listener.getLogger().println("Generating EAR For Artifact: "+artifact.getAppName());
         File modified = new File(artifact.getSourcePath().getParent(),artifact.getAppName()+".ear");
         service.generateEAR(artifact, modified, getEarLevel());
@@ -535,7 +534,8 @@ public class WebSphereDeployerPlugin extends Notifier {
         return BuildStepMonitor.BUILD;
     }
 
-    @Extension
+    
+    @Extension @Symbol("wasDeploy")
     public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
 
         private String adminClientPath;

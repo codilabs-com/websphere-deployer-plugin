@@ -1,7 +1,5 @@
 package org.jenkinsci.plugins.websphere.services.deployment;
 
-import hudson.model.BuildListener;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -21,6 +19,7 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+import hudson.model.TaskListener;
 
 import javax.enterprise.deploy.spi.Target;
 import javax.management.MalformedObjectNameException;
@@ -62,7 +61,7 @@ public class WebSphereDeploymentService extends AbstractDeploymentService {
     private String connectorType;
     private boolean verbose;
     private boolean trustAll;
-    private BuildListener buildListener;
+    private TaskListener buildListener;
     /**
      * This is used to prevent weird behaviors caused by IBM wsadmin that overrides
      * system properties.
@@ -599,7 +598,7 @@ public class WebSphereDeploymentService extends AbstractDeploymentService {
     public void setVerbose(boolean verbose) {
     	this.verbose = verbose;
     }
-    public void setBuildListener(BuildListener listener) {
+    public void setBuildListener(TaskListener listener) {
     	this.buildListener = listener;
     }
 

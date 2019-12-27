@@ -1,6 +1,6 @@
 package org.jenkinsci.plugins.websphere.services.deployment;
 
-import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -23,11 +23,11 @@ public class DeploymentNotificationListener implements NotificationListener
    private boolean successful = true;
    private String message = "";
    private Properties notificationProps = new Properties();
-   private BuildListener listener;
+   private TaskListener listener;
    private boolean verbose;
    private boolean eventTriggered;
 
-   public DeploymentNotificationListener(AdminClient adminClient, NotificationFilterSupport support, Object handBack, String eventTypeToCheck,BuildListener listener,boolean verbose) throws Exception {
+   public DeploymentNotificationListener(AdminClient adminClient, NotificationFilterSupport support, Object handBack, String eventTypeToCheck,TaskListener listener,boolean verbose) throws Exception {
       super();
       this.adminClient = adminClient;
       this.filterSupport = support;
