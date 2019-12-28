@@ -11,9 +11,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Builder;
 import jenkins.tasks.SimpleBuildStep;
-import hudson.tasks.Notifier;
-import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
 
 import java.io.ByteArrayOutputStream;
@@ -44,7 +43,7 @@ import com.ibm.icu.text.SimpleDateFormat;
  *
  * @author Greg Peters
  */
-public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep {
+public class WebSphereDeployerPlugin extends Builder implements SimpleBuildStep {
 
 	private static String OPERATION_REINSTALL = "1";
     private String ipAddress;
@@ -361,72 +360,58 @@ public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep
     	if(build == null) {
     		throw new IllegalStateException("Build cannot be null");
     	}
-    	Result buildResult = build.getResult();
-    	if(buildResult == null) {
-    		throw new IllegalStateException("Build result cannot be null");
-    	}
-        if(shouldDeploy(buildResult)) {
-        	WebSphereDeploymentService service = new WebSphereDeploymentService();
-        	Artifact artifact = null;
-            try {            	
-                EnvVars env = build.getEnvironment(listener);
-                preInitializeService(listener,service, env);  
-            	service.connect();                	               
-                for(FilePath path:gatherArtifactPaths(ws, build, listener)) {
-                    artifact = createArtifact(path,listener,service);   
-                    log(listener,"Artifact is being deployed to virtual host: "+artifact.getVirtualHost());
-                    stopArtifact(artifact,listener,service);
-                    if(getOperations().equals(OPERATION_REINSTALL)) {
-                    	uninstallArtifact(artifact,listener,service);
-                    	deployArtifact(artifact,listener,service);
-                    } else { //otherwise update application
-                    	if(!service.isArtifactInstalled(artifact)) {
-                    		deployArtifact(artifact, listener, service); //do initial deployment
-                    	} else {
-                    		updateArtifact(artifact,listener,service);
-                    	}
+        WebSphereDeploymentService service = new WebSphereDeploymentService();
+        Artifact artifact = null;
+        try {            	
+            EnvVars env = build.getEnvironment(listener);
+            preInitializeService(listener,service, env);  
+            service.connect();                	               
+            for(FilePath path:gatherArtifactPaths(ws, build, listener)) {
+                artifact = createArtifact(path,listener,service);   
+                log(listener,"Artifact is being deployed to virtual host: "+artifact.getVirtualHost());
+                stopArtifact(artifact,listener,service);
+                if(getOperations().equals(OPERATION_REINSTALL)) {
+                    uninstallArtifact(artifact,listener,service);
+                    deployArtifact(artifact,listener,service);
+                } else { //otherwise update application
+                    if(!service.isArtifactInstalled(artifact)) {
+                        deployArtifact(artifact, listener, service); //do initial deployment
+                    } else {
+                        updateArtifact(artifact,listener,service);
                     }
-                    if(isFullSynchronization()) {
-                    	service.fullyResynchronizeNodes();
-                    }
-                    startArtifact(artifact,listener,service);
+                }
+                if(isFullSynchronization()) {
+                    service.fullyResynchronizeNodes();
+                }
+                startArtifact(artifact,listener,service);
 
-                    if(rollback) {
-                    	saveArtifactToRollbackRepository(ws, build, listener, artifact);
-                    }
+                if(rollback) {
+                    saveArtifactToRollbackRepository(ws, build, listener, artifact);
                 }
-            } catch (Exception e) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                PrintStream p = null;
-				try {
-					p = new PrintStream(out,true,"UTF-8");
-				} catch (UnsupportedEncodingException e2) {
-					e2.printStackTrace();
-				}
-                e.printStackTrace(p);
-                if(verbose) {
-                	try {
-						logVerbose(listener,"Error deploying to IBM WebSphere Application Server: "+new String(out.toByteArray(),"UTF-8"));
-					} catch (UnsupportedEncodingException e1) {
-						e1.printStackTrace();
-					}
-                } else {
-                	log(listener,"Error deploying to IBM WebSphere Application Server: "+e.getMessage());
-                }
-                rollbackArtifact(service,ws,build,listener,artifact);
-                build.setResult(Result.FAILURE);
-            } finally {
-                service.disconnect();
             }
-        } else {
-            listener.getLogger().println("Unable to deploy to IBM WebSphere Application Server, Build Result = " + buildResult);
+        } catch (Exception e) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            PrintStream p = null;
+            try {
+                p = new PrintStream(out,true,"UTF-8");
+            } catch (UnsupportedEncodingException e2) {
+                e2.printStackTrace();
+            }
+            e.printStackTrace(p);
+            if(verbose) {
+                try {
+                    logVerbose(listener,"Error deploying to IBM WebSphere Application Server: "+new String(out.toByteArray(),"UTF-8"));
+                } catch (UnsupportedEncodingException e1) {
+                    e1.printStackTrace();
+                }
+            } else {
+                log(listener,"Error deploying to IBM WebSphere Application Server: "+e.getMessage());
+            }
+            rollbackArtifact(service,ws,build,listener,artifact);
+            build.setResult(Result.FAILURE);
+        } finally {
+            service.disconnect();
         }
-    }
-
-    private boolean shouldDeploy(Result result) {
-        if (result.equals(Result.SUCCESS)) return true;
-        if (unstableDeploy && result.equals(Result.UNSTABLE)) return true;
-        return false;
     }
     
     private void log(TaskListener listener,String data) {
@@ -667,7 +652,7 @@ public class WebSphereDeployerPlugin extends Notifier implements SimpleBuildStep
 
     
     @Extension @Symbol("wasDeploy")
-    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
         private String adminClientPath;
         private String orbClientPath;
